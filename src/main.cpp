@@ -13,11 +13,9 @@ int main() {
             std::cout << "VS Code is focused.\n";
         } else {
             std::cout << "VS Code is not focused.\n";
-            checker->playSound();
         }
     } else {
         std::cout << "VS Code is not open.\n";
-        checker->playSound();
     }
 
     delete checker;

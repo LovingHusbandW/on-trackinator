@@ -62,6 +62,7 @@ public:
         // 0 or PointerRoot are invalid for property lookup
         if (focusedWindow == None || focusedWindow == PointerRoot) {
             std::cerr << "No valid focused window\n";
+            playSound("metal_pipe.wav");
             XCloseDisplay(display);
             return false;
         }
@@ -81,10 +82,9 @@ public:
         return false;
     }
 
-
-
-    void playSound(){
-        system("paplay sounds/metal_pipe.wav");
+    void playSound(const std::string& sound){
+        std::string command = "paplay sounds/" + sound;
+        system(command.c_str());
     }
     
 };

@@ -8,5 +8,5 @@ public:
 
     virtual bool isWindowOpen(const std::string& title) = 0;
     virtual bool isWindowFocused(const std::string& title) = 0;
-    virtual void playSound() = 0;
+    virtual void playSound(const std::string& sound) = 0;
 };

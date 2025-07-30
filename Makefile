@@ -2,68 +2,105 @@
 ####################### Makefile Template ##############################
 ########################################################################
 
-# Compiler settings - Can be customized.
+# Compiler settings - can be customized
 CC = g++
-CXXFLAGS = -std=c++11 -Wall
-LDFLAGS = 
-LDLIBS += -lX11
+CXXFLAGS = -std=c++11 -Wall -Isrc/common
+LDFLAGS =
 
-# Makefile settings - Can be customized.
-APPNAME = OnTrackinator
-EXT = .cpp
+# Base source and object directories
 SRCDIR = src
 OBJDIR = obj
 
-############## Do not change anything from here downwards! #############
-SRC = $(wildcard $(SRCDIR)/*$(EXT))
-OBJ = $(SRC:$(SRCDIR)/%$(EXT)=$(OBJDIR)/%.o)
-DEP = $(OBJ:$(OBJDIR)/%.o=%.d)
+# Detect OS and set platform-specific variables
+ifeq ($(OS),Windows_NT)
+    LDLIBS = -lwinmm
+    EXE = .exe
+    DEL = del
+    RM =
+    PLATFORM_SRCDIR = $(SRCDIR)/win32
+    PLATFORM_OBJDIR = $(OBJDIR)/win32
+else
+    LDLIBS = -lX11
+    EXE =
+    DEL =
+    RM = rm
+    PLATFORM_SRCDIR = $(SRCDIR)/linux
+    PLATFORM_OBJDIR = $(OBJDIR)/linux
+endif
 
-# UNIX-based OS variables & settings
-RM = rm
-DELOBJ = $(OBJ)
+# Common source files (e.g., main.cpp, windowcheck.h etc)
+COMMON_SRCDIR = $(SRCDIR)/common
+COMMON_OBJDIR = $(OBJDIR)/common
+COMMON_SRCS = $(wildcard $(COMMON_SRCDIR)/*.cpp)
 
-# Windows OS variables & settings
-DEL = del
-EXE = .exe
-WDELOBJ = $(SRC:$(SRCDIR)/%$(EXT)=$(OBJDIR)\\%.o)
+# Platform specific source files
+PLATFORM_SRCS = $(wildcard $(PLATFORM_SRCDIR)/*.cpp)
+
+# All source files
+SRC = $(COMMON_SRCS) $(PLATFORM_SRCS)
+
+# Object files corresponding to sources, separate folders for common and platform
+OBJ_COMMON = $(patsubst $(COMMON_SRCDIR)/%.cpp,$(COMMON_OBJDIR)/%.o,$(COMMON_SRCS))
+OBJ_PLATFORM = $(patsubst $(PLATFORM_SRCDIR)/%.cpp,$(PLATFORM_OBJDIR)/%.o,$(PLATFORM_SRCS))
+OBJ = $(OBJ_COMMON) $(OBJ_PLATFORM)
+
+# Dependency files
+DEP_COMMON = $(OBJ_COMMON:.o=.d)
+DEP_PLATFORM = $(OBJ_PLATFORM:.o=.d)
+DEP = $(DEP_COMMON) $(DEP_PLATFORM)
 
 ########################################################################
 ####################### Targets beginning here #########################
 ########################################################################
 
-# Default target
-all: $(APPNAME)
+APPNAME = OnTrackinator
 
-# Builds the app (FIXED: now includes $(LDLIBS) for linking -lX11)
-$(APPNAME): $(OBJ)
+# Default target
+all: $(APPNAME)$(EXE)
+
+# Link executable
+$(APPNAME)$(EXE): $(OBJ)
 	$(CC) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LDLIBS)
 
-# Creates the dependency rules
-%.d: $(SRCDIR)/%$(EXT)
-	@$(CPP) $(CFLAGS) $< -MM -MT $(@:%.d=$(OBJDIR)/%.o) >$@
+# Compile common source files
+$(COMMON_OBJDIR)/%.o: $(COMMON_SRCDIR)/%.cpp
+ifeq ($(OS),Windows_NT)
+	@if not exist "$(COMMON_OBJDIR)" mkdir "$(COMMON_OBJDIR)"
+else
+	@mkdir -p "$(COMMON_OBJDIR)"
+endif
+	$(CC) $(CXXFLAGS) -c $< -o $@
 
-# Includes all .d dependency files
+# Compile platform-specific source files
+$(PLATFORM_OBJDIR)/%.o: $(PLATFORM_SRCDIR)/%.cpp
+ifeq ($(OS),Windows_NT)
+	@if not exist "$(PLATFORM_OBJDIR)" mkdir "$(PLATFORM_OBJDIR)"
+else
+	@mkdir -p "$(PLATFORM_OBJDIR)"
+endif
+	$(CC) $(CXXFLAGS) -c $< -o $@
+
+
+# Generate dependency files for all sources
+%.d: %.cpp
+	@$(CC) $(CXXFLAGS) -MM $< -MT $(@:.d=.o) > $@
+
+# Include dependency files if present
 -include $(DEP)
 
-# Compiles source files into object files
-$(OBJDIR)/%.o: $(SRCDIR)/%$(EXT)
-	$(CC) $(CXXFLAGS) -o $@ -c $<
-
-################### Cleaning rules for Unix-based OS ###################
+################### Cleaning rules ###################
 .PHONY: clean
 clean:
-	$(RM) $(DELOBJ) $(DEP) $(APPNAME)
+ifeq ($(OS),Windows_NT)
+	-for %%F in ($(OBJ) $(DEP) $(APPNAME)$(EXE)) do del /Q "%%F"
+else
+	$(RM) -f $(OBJ) $(DEP) $(APPNAME)
+endif
 
 .PHONY: cleandep
 cleandep:
-	$(RM) $(DEP)
-
-#################### Cleaning rules for Windows OS #####################
-.PHONY: cleanw
-cleanw:
-	$(DEL) $(WDELOBJ) $(DEP) $(APPNAME)$(EXE)
-
-.PHONY: cleandepw
-cleandepw:
-	$(DEL) $(DEP)
+ifeq ($(OS),Windows_NT)
+	-for %%F in ($(DEP)) do del /Q "%%F"
+else
+	$(RM) -f $(DEP)
+endif
